@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { BrainCircuit } from "lucide-react";
+import { BrainCircuit, Camera } from "lucide-react";
 
 const links = [
   ["Courses", "/courses"],
   ["Practice", "/practice"],
   ["FRQ", "/frq"],
   ["Tutor", "/tutor"],
+  ["Screenshots", "/screenshots"],
   ["Cram", "/cram"],
   ["Mistakes", "/mistakes"],
   ["Referrals", "/referrals"],
@@ -26,6 +27,9 @@ export function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
+          <Link href="/screenshots" aria-label="Open screenshot coach" className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 sm:px-4">
+            <Camera size={16} /> <span className="hidden sm:inline">Screenshot</span>
+          </Link>
           <Link href="/account" className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 sm:inline-flex">
             Account
           </Link>

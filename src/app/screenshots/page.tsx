@@ -78,13 +78,18 @@ function getTinyFrame(video: HTMLVideoElement) {
   return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
+function getGuideBounds(width: number, height: number) {
+  return {
+    left: Math.floor(width * 0.2),
+    right: Math.floor(width * 0.8),
+    top: Math.floor(height * 0.18),
+    bottom: Math.floor(height * 0.82),
+  };
+}
+
 function motionScore(previous: ImageData, current: ImageData) {
-  const width = current.width;
-  const height = current.height;
-  const left = Math.floor(width * 0.2);
-  const right = Math.floor(width * 0.8);
-  const top = Math.floor(height * 0.18);
-  const bottom = Math.floor(height * 0.82);
+  const { width, height } = current;
+  const { left, right, top, bottom } = getGuideBounds(width, height);
   let changed = 0;
   let total = 0;
 
@@ -100,6 +105,57 @@ function motionScore(previous: ImageData, current: ImageData) {
     }
   }
   return total ? changed / total : 0;
+}
+
+function isPalmLikePixel(r: number, g: number, b: number) {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const y = 0.299 * r + 0.587 * g + 0.114 * b;
+  const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+  const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+  // Broad, lighting-tolerant skin/palm heuristic. It does not identify a person;
+  // it only checks whether a hand-like color blob entered the guide box.
+  const ycbcrSkin = y > 45 && cb >= 70 && cb <= 145 && cr >= 125 && cr <= 190;
+  const rgbSkin = r > 45 && g > 28 && b > 18 && max - min > 12 && r > b * 0.9 && r > g * 0.78;
+  return ycbcrSkin && rgbSkin;
+}
+
+function palmPresenceScore(current: ImageData) {
+  const { width, height } = current;
+  const { left, right, top, bottom } = getGuideBounds(width, height);
+  let palmPixels = 0;
+  let total = 0;
+  let minX = width;
+  let maxX = 0;
+  let minY = height;
+  let maxY = 0;
+
+  for (let y = top; y < bottom; y += 2) {
+    for (let x = left; x < right; x += 2) {
+      const i = (y * width + x) * 4;
+      const r = current.data[i];
+      const g = current.data[i + 1];
+      const b = current.data[i + 2];
+      if (isPalmLikePixel(r, g, b)) {
+        palmPixels += 1;
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+      total += 1;
+    }
+  }
+
+  const ratio = total ? palmPixels / total : 0;
+  const boxWidth = Math.max(0, maxX - minX);
+  const boxHeight = Math.max(0, maxY - minY);
+  const boxArea = boxWidth * boxHeight;
+  const guideArea = Math.max(1, (right - left) * (bottom - top));
+  const blobCoverage = boxArea / guideArea;
+
+  return { ratio, blobCoverage };
 }
 
 export default function ScreenshotsPage() {
@@ -188,7 +244,7 @@ export default function ScreenshotsPage() {
         await videoRef.current.play();
       }
       setCameraOn(true);
-      setGestureStatus("Camera ready. Use Capture photo or enable palm/wave gesture.");
+      setGestureStatus("Camera ready. Use Capture photo or enable palm gesture.");
       return true;
     } catch {
       setError(
@@ -232,7 +288,7 @@ export default function ScreenshotsPage() {
       if (n <= 0) {
         window.clearInterval(timer);
         takeCameraPhoto();
-        setGestureStatus("Gesture photo captured. Wave/open your palm again to retake.");
+        setGestureStatus("Gesture photo captured. Move your palm away, then bring it back into the guide box to retake.");
         window.setTimeout(() => {
           countdownStartedRef.current = false;
         }, 2000);
@@ -252,34 +308,47 @@ export default function ScreenshotsPage() {
     gestureStopRef.current?.();
     setGestureOn(true);
     setGestureStatus(
-      "Gesture mode on. Wave an open palm inside the guide box to start the 3-second countdown.",
+      "Palm gesture mode on. Move an open palm into the guide box to start the 3-second countdown.",
     );
 
     let previous: ImageData | null = null;
-    let quietFrames = 0;
+    let palmFrames = 0;
+    let noPalmFrames = 0;
     let lastTrigger = 0;
 
     const interval = window.setInterval(() => {
       if (!videoRef.current || videoRef.current.readyState < 2) return;
       const current = getTinyFrame(videoRef.current);
       if (!current) return;
+
+      const palm = palmPresenceScore(current);
+      const palmLooksClear = palm.ratio > 0.075 && palm.blobCoverage > 0.08;
+      if (palmLooksClear) {
+        palmFrames += 1;
+        noPalmFrames = 0;
+      } else {
+        palmFrames = 0;
+        noPalmFrames += 1;
+      }
+
       if (previous && !countdownStartedRef.current) {
         const score = motionScore(previous, current);
-        if (score < 0.025) quietFrames += 1;
-        else quietFrames = 0;
-
         const now = Date.now();
-        if (score > 0.11 && quietFrames < 5 && now - lastTrigger > 4500) {
+        const palmMoved = palmLooksClear && score > 0.018;
+
+        if (palmMoved && palmFrames >= 2 && now - lastTrigger > 5000) {
           lastTrigger = now;
           startCountdownCapture();
+        } else if (palmLooksClear) {
+          setGestureStatus("Palm detected. Move it slightly inside the guide box to capture.");
         } else if (score > 0.055) {
-          setGestureStatus("Movement detected. Wave/open your palm clearly in the guide box.");
-        } else if (!countdownStartedRef.current) {
-          setGestureStatus("Gesture mode on. Wave an open palm inside the guide box.");
+          setGestureStatus("Movement detected, but not a palm. Show an open palm inside the guide box.");
+        } else if (noPalmFrames > 5) {
+          setGestureStatus("Palm gesture mode on. Move an open palm into the guide box.");
         }
       }
       previous = current;
-    }, 220);
+    }, 180);
 
     gestureStopRef.current = () => {
       window.clearInterval(interval);
@@ -324,10 +393,10 @@ export default function ScreenshotsPage() {
             Screenshot coach
           </p>
           <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">
-            Upload, capture, or use a hand gesture.
+            Upload, capture, or use a palm gesture.
           </h1>
           <p className="mt-3 max-w-2xl text-slate-600">
-            Add a screenshot or camera photo for {courseInfo.shortName}. Gesture capture now uses a no-WebGL camera loop, so it avoids the WebGL crash. Wave/open your palm inside the guide box to start a 3-second countdown.
+            Add a screenshot or camera photo for {courseInfo.shortName}. On phones, open the Screenshot tab from the top bar, start the camera, then move an open palm into the guide box to trigger a 3-second countdown.
           </p>
           <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-700">
             {billing.isPro ? "Pro active: unlimited screenshot analysis." : `Free plan: ${remainingScreenshots} screenshot analys${remainingScreenshots === 1 ? "is" : "es"} left today.`} {!billing.isPro ? <Link href="/pricing" className="ml-2 text-brand-700 underline">Upgrade</Link> : null}
@@ -408,7 +477,7 @@ export default function ScreenshotsPage() {
               onClick={enableGestureCapture}
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-800"
             >
-              <Hand size={16} /> Enable gesture
+              <Hand size={16} /> Enable palm gesture
             </button>
             {cameraOn ? (
               <button

@@ -42,6 +42,9 @@ export default function Home() {
             <Link href="/frq" className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-4 font-bold text-slate-900 transition hover:border-brand-300 hover:bg-brand-50">
               Try FRQ grader
             </Link>
+            <Link href="/screenshots" className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-6 py-4 font-bold text-slate-900 transition hover:border-brand-300 hover:bg-brand-50">
+              <Camera size={18} /> Screenshot coach
+            </Link>
           </div>
           <div className="mt-5 flex items-center gap-2 text-sm font-bold text-brand-700">
             {[1, 2, 3, 4, 5].map((star) => <Star key={star} size={16} fill="currentColor" />)}
