@@ -24,10 +24,20 @@ export default function PricingPage() {
         return;
       }
 
-      const { data } = await supabase.auth.getSession();
+      if (!billing.signedIn && !billing.loading) {
+        window.location.href = "/auth?next=/pricing";
+        return;
+      }
+
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Auth session timed out. Please sign in again.")), 8000),
+      );
+      const { data } = await Promise.race([sessionPromise, timeoutPromise]);
       const token = data.session?.access_token;
       if (!token) {
         setMessage("Create an account or sign in before upgrading.");
+        window.location.href = "/auth?next=/pricing";
         return;
       }
 
@@ -39,11 +49,15 @@ export default function PricingPage() {
         },
         body: JSON.stringify({ type }),
       });
-      const response = await res.json();
+      const response = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(response.message || "Stripe checkout failed on the server.");
+        return;
+      }
       if (response.url) window.location.href = response.url;
       else setMessage(response.message || "Stripe checkout failed.");
-    } catch {
-      setMessage("Stripe checkout failed. Check your environment variables and Stripe Price ID.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Stripe checkout failed. Check your environment variables and Stripe Price ID.");
     } finally {
       setLoading("");
     }
@@ -103,7 +117,7 @@ export default function PricingPage() {
               <li>Full analytics and mistake review</li>
             </ul>
             <button onClick={() => checkout("pro")} className="mt-6 w-full rounded-full bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-50" disabled={loading !== "" || billing.isPro}>
-              {billing.isPro ? "Already Pro" : loading === "pro" ? "Opening Stripe..." : "Start Pro"}
+              {billing.isPro ? "Already Pro" : loading === "pro" ? "Opening Stripe..." : !billing.signedIn && !billing.loading ? "Sign in to start Pro" : "Start Pro"}
             </button>
             {!billing.signedIn && !billing.loading ? <p className="mt-3 text-sm text-slate-500"><Lock className="mr-1 inline" size={14} /> You’ll be asked to sign in first.</p> : null}
             {message ? <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-800">{message}</p> : null}
@@ -118,7 +132,7 @@ export default function PricingPage() {
               <li>Final weakness report</li>
             </ul>
             <button onClick={() => checkout("cram")} className="mt-6 w-full rounded-full border border-slate-200 px-6 py-3 font-black text-slate-800 disabled:opacity-50" disabled={loading !== ""}>
-              {loading === "cram" ? "Opening Stripe..." : "Buy cram pack"}
+              {loading === "cram" ? "Opening Stripe..." : !billing.signedIn && !billing.loading ? "Sign in to buy" : "Buy cram pack"}
             </button>
           </Card>
         </div>
