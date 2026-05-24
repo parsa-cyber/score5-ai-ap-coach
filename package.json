@@ -1,0 +1,32 @@
+{
+  "name": "score5-ai-ap-coach",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Score5: a launchable AI AP study coach for every AP class with diagnostics, AI tutoring, FRQ grading, screenshot analysis, gesture camera capture, progress analytics, Stripe, and Supabase-ready scaffolding.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
+    "clsx": "latest",
+    "lucide-react": "latest",
+    "next": "^15.5.18",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "styled-jsx": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "^19.2.6",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.20",
+    "eslint": "latest",
+    "eslint-config-next": "^15.5.18",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
+  }
+}
