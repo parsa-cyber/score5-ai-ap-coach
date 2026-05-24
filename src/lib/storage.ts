@@ -109,3 +109,76 @@ export function resetDemoData() {
   localStorage.removeItem(STREAK_KEY);
   localStorage.removeItem(USAGE_KEY);
 }
+
+
+const DIAGNOSTIC_RESULT_KEY = "score5.diagnosticResult";
+const REFERRAL_KEY = "score5.referrals";
+const REMINDERS_KEY = "score5.reminders";
+
+export type DiagnosticResult = {
+  course: string;
+  score: number;
+  readiness: number;
+  weakUnits: string[];
+  createdAt: string;
+};
+
+export type ReferralState = { code: string; invites: number; proRewardDays: number };
+
+export type ReminderSettings = { enabled: boolean; email: string; course: string; examDate: string; frequency: "daily" | "weekly" | "off" };
+
+export function saveDiagnosticResult(result: DiagnosticResult) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DIAGNOSTIC_RESULT_KEY, JSON.stringify(result));
+}
+
+export function getDiagnosticResult(): DiagnosticResult | null {
+  if (typeof window === "undefined") return null;
+  return safeParse<DiagnosticResult | null>(localStorage.getItem(DIAGNOSTIC_RESULT_KEY), null);
+}
+
+export function getMistakeAttempts(course?: string) {
+  return getAttempts().filter((attempt) => (!course || !attempt.course || attempt.course === course) && !attempt.correct);
+}
+
+function makeReferralCode() {
+  const profile = getProfile();
+  const base = (profile.name || "score5").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "score5";
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${base}${suffix}`;
+}
+
+export function getReferralState(): ReferralState {
+  if (typeof window === "undefined") return { code: "score5demo", invites: 0, proRewardDays: 0 };
+  const existing = safeParse<ReferralState | null>(localStorage.getItem(REFERRAL_KEY), null);
+  if (existing?.code) return existing;
+  const fresh = { code: makeReferralCode(), invites: 0, proRewardDays: 0 };
+  localStorage.setItem(REFERRAL_KEY, JSON.stringify(fresh));
+  return fresh;
+}
+
+export function addReferralInvite() {
+  if (typeof window === "undefined") return getReferralState();
+  const state = getReferralState();
+  const invites = state.invites + 1;
+  const proRewardDays = invites >= 10 ? 30 : invites >= 3 ? 7 : 0;
+  const next = { ...state, invites, proRewardDays };
+  localStorage.setItem(REFERRAL_KEY, JSON.stringify(next));
+  return next;
+}
+
+export function getReminderSettings(): ReminderSettings {
+  if (typeof window === "undefined") return { enabled: false, email: "", course: defaultProfile.course, examDate: defaultProfile.examDate, frequency: "weekly" };
+  return safeParse<ReminderSettings>(localStorage.getItem(REMINDERS_KEY), {
+    enabled: false,
+    email: "",
+    course: getProfile().course,
+    examDate: getProfile().examDate,
+    frequency: "weekly",
+  });
+}
+
+export function saveReminderSettings(settings: ReminderSettings) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(REMINDERS_KEY, JSON.stringify(settings));
+}

@@ -123,3 +123,49 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();
+
+-- Optional growth/revenue tables for the enhanced Score5 funnel.
+create table if not exists public.usage_events (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade,
+  feature text not null,
+  count int default 1,
+  used_on date default current_date,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.referrals (
+  id uuid primary key default uuid_generate_v4(),
+  referrer_id uuid references auth.users(id) on delete cascade,
+  referred_user_id uuid references auth.users(id) on delete set null,
+  referral_code text not null,
+  reward_days int default 0,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.reminder_preferences (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  course text,
+  exam_date date,
+  frequency text default 'weekly',
+  enabled boolean default false,
+  updated_at timestamptz default now()
+);
+
+alter table public.usage_events enable row level security;
+alter table public.referrals enable row level security;
+alter table public.reminder_preferences enable row level security;
+
+drop policy if exists "Usage events are owned by user" on public.usage_events;
+create policy "Usage events are owned by user" on public.usage_events for select using (auth.uid() = user_id);
+drop policy if exists "Usage events can be inserted by owner" on public.usage_events;
+create policy "Usage events can be inserted by owner" on public.usage_events for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Referrals are viewable by referrer" on public.referrals;
+create policy "Referrals are viewable by referrer" on public.referrals for select using (auth.uid() = referrer_id);
+drop policy if exists "Referrals can be inserted by referrer" on public.referrals;
+create policy "Referrals can be inserted by referrer" on public.referrals for insert with check (auth.uid() = referrer_id);
+
+drop policy if exists "Reminder prefs are owned by user" on public.reminder_preferences;
+create policy "Reminder prefs are owned by user" on public.reminder_preferences for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

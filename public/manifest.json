@@ -1,0 +1,12 @@
+{
+  "name": "Score5 AI AP Coach",
+  "short_name": "Score5",
+  "description": "AI AP study coach with diagnostics, FRQ grading, screenshot help, cram plans, and mistake review.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

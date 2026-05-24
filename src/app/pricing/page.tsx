@@ -68,9 +68,9 @@ export default function PricingPage() {
       <Nav />
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <p className="text-sm font-black uppercase tracking-[0.2em] text-brand-700">Pricing</p>
-        <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">Turn Score5 into a real SaaS product.</h1>
+        <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">Upgrade for unlimited AP feedback.</h1>
         <p className="mt-2 max-w-3xl text-slate-600">
-          Free users can try the core study loop. Pro unlocks unlimited AI tutoring, FRQ grading, screenshot analysis, and deeper practice.
+          Less than one tutoring session. Score5 Pro unlocks unlimited AP practice, FRQ grading, screenshot solving, mistake review, and cram planning.
         </p>
 
         <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
@@ -115,6 +115,7 @@ export default function PricingPage() {
               <li>Unlimited FRQ grading</li>
               <li>Unlimited screenshot/image coach</li>
               <li>Full analytics and mistake review</li>
+              <li>Predicted score plan and AP cram mode</li>
             </ul>
             <button onClick={() => checkout("pro")} className="mt-6 w-full rounded-full bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-50" disabled={loading !== "" || billing.isPro}>
               {billing.isPro ? "Already Pro" : loading === "pro" ? "Opening Stripe..." : !billing.signedIn && !billing.loading ? "Sign in to start Pro" : "Start Pro"}
@@ -127,6 +128,7 @@ export default function PricingPage() {
             <p className="mt-2 text-4xl font-black">$14.99</p>
             <ul className="mt-5 space-y-3 text-slate-600">
               <li>7-day emergency AP plan</li>
+              <li>One-time purchase for AP exam season</li>
               <li>High-yield review sequence</li>
               <li>Practice-test workflow</li>
               <li>Final weakness report</li>

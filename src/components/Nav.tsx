@@ -3,15 +3,13 @@ import { BrainCircuit } from "lucide-react";
 
 const links = [
   ["Courses", "/courses"],
-  ["Dashboard", "/dashboard"],
   ["Practice", "/practice"],
-  ["AI Tutor", "/tutor"],
-  ["FRQ Grader", "/frq"],
-  ["Screenshots", "/screenshots"],
-  ["Reviews", "/reviews"],
-  ["Progress", "/progress"],
+  ["FRQ", "/frq"],
+  ["Tutor", "/tutor"],
+  ["Cram", "/cram"],
+  ["Mistakes", "/mistakes"],
+  ["Referrals", "/referrals"],
   ["Pricing", "/pricing"],
-  ["Account", "/account"],
 ];
 
 export function Nav() {
@@ -28,11 +26,11 @@ export function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/auth" className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 sm:inline-flex">
-            Sign in
+          <Link href="/account" className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 sm:inline-flex">
+            Account
           </Link>
           <Link href="/diagnostic" className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700">
-            Start diagnostic
+            Free score check
           </Link>
         </div>
       </div>

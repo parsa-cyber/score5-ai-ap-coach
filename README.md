@@ -1,187 +1,66 @@
-# Score5 — AI AP Study Coach
+# Score5 AI AP Coach
 
-Score5 is a launchable MVP for an AI AP Study Coach that now supports every AP subject listed in the app's course library. It includes a landing page, all-course onboarding, diagnostic quiz, dashboard, practice engine, mistake review, AI tutor, FRQ grader, screenshot/image coach, phone-camera capture, open-palm hand-gesture capture, progress analytics, reviews page, pricing page, Stripe Checkout endpoint, Supabase schema, and OpenAI-powered API routes with local fallbacks.
+Score5 is a launchable Next.js AP study coach with diagnostics, AP-style practice, AI tutor, FRQ grading, screenshot analysis, gesture camera capture, Supabase Auth, Stripe Pro payments, and growth/revenue features.
 
-## New in this version
+## New growth/revenue features included
 
-- Course library for 42 AP subjects
-- Course selector across onboarding, practice, AI Tutor, FRQ Grader, Progress, and Screenshot Coach
-- Generic AP-style starter practice for every AP class
-- Built-in original starter bank for AP Physics 1
-- Open-palm camera gesture capture with a 3-second countdown
-- Reviews page with five-star early tester cards
-- Fixed package setup for Mac/Apple Silicon by not forcing a Linux-only Next SWC package
-- Removed the generated package lock from the zip so npm installs platform-correct packages
+- Free vs Pro limits and upgrade prompts
+- Predicted AP score diagnostic funnel
+- FRQ grader positioned as the paid killer feature
+- AP Exam Cram Mode (`/cram`)
+- Referral rewards (`/referrals`)
+- Shareable diagnostic results (`/share`)
+- Mistake Notebook (`/mistakes`)
+- Email reminder settings (`/reminders`)
+- Teacher/classroom mode landing page (`/teacher`)
+- Growth analytics checklist (`/analytics`)
+- PWA install instructions (`/install`)
+- Terms, Privacy, Refund, Contact pages
+- Supabase schema additions for usage events, referrals, reminders, and paid subscriptions
 
-## Run locally
+## Local launch
 
 ```bash
-cd ~/Downloads/score5-ai-ap-coach
+cd score5-ai-ap-coach
 npm install
-cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open:
 
-## Environment variables
+```text
+http://localhost:3000
+```
 
-Only OpenAI is needed for the AI features:
+## Required environment variables
 
 ```bash
-OPENAI_API_KEY=your_key_here
+OPENAI_API_KEY=your_openai_key
 OPENAI_MODEL=gpt-5.1-mini
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
 
-Supabase and Stripe can be added later when you want real login, database persistence, and payments.
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_publishable_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_secret_key
 
-## Important launch note on reviews
-
-The app includes review cards for Jake, Calvin, Amir, and Ali based on the names provided during development. Replace the text with the exact review wording you have from them before publicly marketing the site.
-
-## Pages
-
-- `/` landing page
-- `/courses` full AP course library
-- `/onboarding` course/profile setup
-- `/diagnostic` diagnostic quiz
-- `/dashboard` personalized dashboard
-- `/practice` practice modes
-- `/tutor` AI tutor
-- `/frq` FRQ/written response grader
-- `/screenshots` screenshot + camera + hand gesture capture
-- `/reviews` reviews page
-- `/progress` analytics
-- `/pricing` pricing page
-
-## Open-palm gesture capture
-
-The screenshot page can use the phone/laptop camera. Click **Start phone camera**, then **Open-palm gesture**. Showing an open palm with 4-5 extended fingers starts a 3-second countdown and captures the camera frame.
-
-The gesture model loads MediaPipe Hands from a CDN, so it requires internet access in the browser. If the model cannot load, the normal camera capture button still works.
-
-## Production checklist
-
-1. Replace placeholder review copy with exact submitted testimonials.
-2. Add more reviewed question banks per AP course.
-3. Add Supabase auth + database persistence.
-4. Add Stripe products and price IDs.
-5. Deploy to Vercel and add environment variables in the Vercel dashboard.
-6. Test screenshot/camera permissions on iPhone Safari and Chrome.
-
-## Real Accounts: Email Verification Codes + Google Sign-In
-
-This version includes a production-ready auth screen at `/auth` and an account page at `/account`.
-
-### What works after Supabase is configured
-
-- Email sign-up/sign-in with a 6-digit verification code
-- Google sign-in/sign-up
-- Persistent browser sessions
-- Account page with signed-in user info
-- Sign out
-- Profile row creation trigger in `supabase/schema.sql`
-
-### Required environment variables
-
-Add these to `.env.local` locally and to Vercel Environment Variables in production:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-```
-
-Keep your OpenAI variables too:
-
-```bash
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-5.1-mini
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-### Supabase setup checklist
-
-1. Create a Supabase project.
-2. Copy the Project URL and anon/public key into `.env.local`.
-3. In Supabase SQL Editor, run `supabase/schema.sql`.
-4. In Supabase Auth URL Configuration, add:
-   - `http://localhost:3000`
-   - `http://localhost:3000/auth/callback`
-   - your Vercel production domain later
-5. For 6-digit email codes, edit the Supabase email template so it includes `{{ .Token }}`. If the template uses `{{ .ConfirmationURL }}`, users receive a magic link instead of a code.
-6. For Google sign-in, enable Google in Supabase Auth Providers and add your Google OAuth client ID/secret.
-
-The app will still run without Supabase, but `/auth` will show a setup warning until those public Supabase keys are present.
-
-## Pro Payments + Usage Limits
-
-This version includes a real Pro monetization flow.
-
-### What was added
-
-- Stripe Checkout for Score5 Pro monthly subscriptions
-- Optional one-time Cram Pack checkout
-- Authenticated checkout, so users must sign in before paying
-- Stripe webhook route at `/api/stripe/webhook`
-- Supabase profile updates after Stripe payment/subscription events
-- Account page membership card
-- Stripe Customer Portal route at `/api/stripe/portal`
-- Free daily limits in the UI:
-  - 10 practice answers/day
-  - 5 AI Tutor messages/day
-  - 1 FRQ grade/day
-  - 2 screenshot analyses/day
-- Pro users unlock unlimited usage in the app UI
-
-### Required Vercel environment variables
-
-Add these in `Vercel → Project → Settings → Environment Variables`:
-
-```bash
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-5.1-mini
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=...
-STRIPE_SECRET_KEY=...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PRO_PRICE_ID=price_...
 STRIPE_CRAM_PRICE_ID=price_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-### Stripe setup
+Never commit `.env.local`.
 
-1. Create a Stripe product named `Score5 Pro`.
-2. Add a recurring monthly price, for example `$7.99/month`.
-3. Copy the `price_...` ID into `STRIPE_PRO_PRICE_ID`.
-4. Optional: create a one-time `Score5 Cram Pack` product and add that `price_...` ID to `STRIPE_CRAM_PRICE_ID`.
-5. Add a webhook endpoint:
+## Deployment flow
 
-```text
-https://your-domain.com/api/stripe/webhook
-```
+1. Run `npm run build` locally.
+2. Push to GitHub.
+3. Add environment variables in Vercel.
+4. Redeploy.
+5. Update Supabase auth redirect URLs.
+6. Test Stripe checkout in sandbox before switching to live mode.
 
-Listen for:
+## Legal note
 
-```text
-checkout.session.completed
-customer.subscription.created
-customer.subscription.updated
-customer.subscription.deleted
-invoice.payment_succeeded
-invoice.payment_failed
-```
-
-6. Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
-7. Redeploy on Vercel.
-
-### Supabase database update
-
-Run the updated `supabase/schema.sql` in Supabase SQL Editor. It adds Pro billing columns to `profiles` and updates the `subscriptions` table.
-
-Important: `SUPABASE_SERVICE_ROLE_KEY` is server-only. Do not expose it in client code.
+Score5 is not affiliated with, sponsored by, or endorsed by College Board. Review and customize the included legal templates before accepting live payments.
