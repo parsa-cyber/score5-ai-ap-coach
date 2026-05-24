@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { Card } from "@/components/Card";
 import { apCourses, getCourseInfo } from "@/data/courses";
-import { getProfile, saveProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getRemainingDailyUsage, incrementDailyUsage } from "@/lib/storage";
 import type { Course } from "@/types";
+import { useSubscription } from "@/hooks/useSubscription";
+import { FREE_LIMITS } from "@/lib/subscription";
+import Link from "next/link";
 
 type Message = { role: "user" | "assistant"; text: string };
 
@@ -24,6 +27,8 @@ export default function TutorPage() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const billing = useSubscription();
+  const remainingTutor = billing.isPro ? Infinity : getRemainingDailyUsage("ai_tutor", FREE_LIMITS.ai_tutor);
 
   useEffect(() => {
     const profile = getProfile();
@@ -40,6 +45,10 @@ export default function TutorPage() {
 
   async function send(text = input) {
     if (!text.trim()) return;
+    if (!billing.isPro && remainingTutor <= 0) {
+      setMessages((m) => [...m, { role: "assistant", text: "You hit the free AI Tutor limit for today. Upgrade to Pro for unlimited AP tutoring." }]);
+      return;
+    }
     const next = [...messages, { role: "user" as const, text }];
     setMessages(next);
     setInput("");
@@ -51,6 +60,7 @@ export default function TutorPage() {
         body: JSON.stringify({ course, messages: next }),
       });
       const data = await res.json();
+      incrementDailyUsage("ai_tutor");
       setMessages([...next, { role: "assistant", text: data.answer || "No answer returned." }]);
     } catch {
       setMessages([...next, { role: "assistant", text: "The tutor endpoint failed. Check your API key or try again." }]);
@@ -66,6 +76,9 @@ export default function TutorPage() {
         <p className="text-sm font-black uppercase tracking-[0.2em] text-brand-700">AI Tutor</p>
         <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">Controlled AP tutor for every AP class</h1>
         <p className="mt-2 text-slate-600">Select a course and Score5 changes its examples, rubric language, question style, and study strategy.</p>
+        <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-700">
+          {billing.isPro ? "Pro active: unlimited tutor messages." : `Free plan: ${remainingTutor} AI tutor message${remainingTutor === 1 ? "" : "s"} left today.`} {!billing.isPro ? <Link href="/pricing" className="ml-2 text-brand-700 underline">Upgrade</Link> : null}
+        </div>
 
         <Card className="mt-8">
           <label className="mb-5 grid gap-2 font-bold">Course

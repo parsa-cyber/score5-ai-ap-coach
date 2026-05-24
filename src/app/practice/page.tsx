@@ -6,9 +6,11 @@ import { Nav } from "@/components/Nav";
 import { Card } from "@/components/Card";
 import { QuestionCard } from "@/components/QuestionCard";
 import { recommendedQuestions } from "@/lib/score";
-import { getAttempts, getProfile, saveProfile } from "@/lib/storage";
+import { getAttempts, getProfile, saveProfile, getRemainingDailyUsage, incrementDailyUsage } from "@/lib/storage";
 import { apCourses, getCourseInfo, unitsForCourse } from "@/data/courses";
 import type { Attempt, Course, Question } from "@/types";
+import { useSubscription } from "@/hooks/useSubscription";
+import { FREE_LIMITS } from "@/lib/subscription";
 
 type Mode = "quick" | "weakness" | "mistakes" | "unit";
 
@@ -26,6 +28,8 @@ function PracticeContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState("");
+  const billing = useSubscription();
+  const remainingPractice = billing.isPro ? Infinity : getRemainingDailyUsage("practice_answer", FREE_LIMITS.practice_answer);
 
   useEffect(() => {
     const profile = getProfile();
@@ -63,6 +67,10 @@ function PracticeContent() {
   }
 
   async function start() {
+    if (!billing.isPro && remainingPractice <= 0) {
+      setGenerationError("You hit the free daily practice limit. Upgrade to Pro for unlimited practice.");
+      return;
+    }
     setGenerating(true);
     setGenerationError("");
     try {
@@ -88,13 +96,14 @@ function PracticeContent() {
       const uniqueByPrompt = Array.from(
         new Map(nextQuestions.map((q: Question) => [q.prompt, q])).values(),
       ) as Question[];
-      setQueue(uniqueByPrompt.length ? uniqueByPrompt : available);
+      const finalQuestions = uniqueByPrompt.length ? uniqueByPrompt : available;
+      setQueue(billing.isPro ? finalQuestions : finalQuestions.slice(0, Math.max(1, remainingPractice)));
       setCurrentIndex(0);
     } catch {
       setGenerationError(
         "AI question generation failed, so Score5 loaded the built-in practice set instead.",
       );
-      setQueue(available);
+      setQueue(billing.isPro ? available : available.slice(0, Math.max(1, remainingPractice)));
       setCurrentIndex(0);
     } finally {
       setGenerating(false);
@@ -188,8 +197,7 @@ function PracticeContent() {
                   : mode}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Questions are generated/refreshed for the selected AP course and
-                unit so the set does not repeat the same prompt.
+                {billing.isPro ? "Pro: unlimited practice today." : `Free plan: ${remainingPractice} practice question${remainingPractice === 1 ? "" : "s"} left today.`}
               </p>
             </div>
             {generationError ? (
@@ -199,7 +207,7 @@ function PracticeContent() {
             ) : null}
             <button
               onClick={start}
-              disabled={generating || available.length === 0}
+              disabled={generating || available.length === 0 || (!billing.isPro && remainingPractice <= 0)}
               className="mt-6 rounded-full bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-40"
             >
               {generating ? "Building fresh MCQs..." : "Start set"}
@@ -219,6 +227,7 @@ function PracticeContent() {
               key={current.id}
               question={current}
               onAnswered={next}
+              onSubmitted={() => incrementDailyUsage("practice_answer")}
             />
           </div>
         )}

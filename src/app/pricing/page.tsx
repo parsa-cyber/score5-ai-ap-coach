@@ -1,25 +1,51 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { CheckCircle2, Lock, Zap } from "lucide-react";
 import { Nav } from "@/components/Nav";
 import { Card } from "@/components/Card";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { FREE_LIMITS } from "@/lib/subscription";
+import { useSubscription } from "@/hooks/useSubscription";
 
 export default function PricingPage() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"pro" | "cram" | "">("");
   const [message, setMessage] = useState("");
+  const billing = useSubscription();
+  const supabase = getSupabaseBrowserClient();
 
-  async function checkout() {
-    setLoading(true);
+  async function checkout(type: "pro" | "cram" = "pro") {
+    setLoading(type);
     setMessage("");
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else setMessage(data.message || "Stripe is not configured yet.");
+      if (!supabase) {
+        setMessage("Supabase is not configured. Add your Supabase env variables first.");
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        setMessage("Create an account or sign in before upgrading.");
+        return;
+      }
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ type }),
+      });
+      const response = await res.json();
+      if (response.url) window.location.href = response.url;
+      else setMessage(response.message || "Stripe checkout failed.");
     } catch {
-      setMessage("Stripe checkout failed. Check your environment variables.");
+      setMessage("Stripe checkout failed. Check your environment variables and Stripe Price ID.");
     } finally {
-      setLoading(false);
+      setLoading("");
     }
   }
 
@@ -28,41 +54,72 @@ export default function PricingPage() {
       <Nav />
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <p className="text-sm font-black uppercase tracking-[0.2em] text-brand-700">Pricing</p>
-        <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">Freemium now, cram-pack upside later.</h1>
-        <p className="mt-2 text-slate-600">Launch with a simple free plan and one Pro subscription.</p>
+        <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">Turn Score5 into a real SaaS product.</h1>
+        <p className="mt-2 max-w-3xl text-slate-600">
+          Free users can try the core study loop. Pro unlocks unlimited AI tutoring, FRQ grading, screenshot analysis, and deeper practice.
+        </p>
+
+        <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-slate-500">Current plan</p>
+              <p className="text-2xl font-black text-slate-950">{billing.isPro ? "Score5 Pro" : "Free"}</p>
+            </div>
+            {billing.isPro ? (
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-700">
+                <CheckCircle2 size={17} /> Pro active
+              </span>
+            ) : (
+              <Link href="/auth" className="inline-flex rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                Sign in before upgrading
+              </Link>
+            )}
+          </div>
+        </div>
+
         <div className="mt-8 grid gap-5 md:grid-cols-3">
           <Card>
             <h2 className="text-2xl font-black">Free</h2>
             <p className="mt-2 text-4xl font-black">$0</p>
             <ul className="mt-5 space-y-3 text-slate-600">
-              <li>Diagnostic quiz</li>
-              <li>10 questions/day</li>
-              <li>Basic explanations</li>
-              <li>Basic progress</li>
+              <li>{FREE_LIMITS.practice_answer} practice questions/day</li>
+              <li>{FREE_LIMITS.ai_tutor} AI tutor messages/day</li>
+              <li>{FREE_LIMITS.frq_grade} FRQ grade/day</li>
+              <li>{FREE_LIMITS.screenshot_analyze} screenshot analyses/day</li>
+              <li>Basic progress dashboard</li>
             </ul>
           </Card>
           <Card className="border-brand-300 ring-4 ring-brand-50">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-brand-800">
+              <Zap size={14} /> Best value
+            </div>
             <h2 className="text-2xl font-black">Pro</h2>
             <p className="mt-2 text-4xl font-black">$7.99<span className="text-base font-bold text-slate-500">/mo</span></p>
             <ul className="mt-5 space-y-3 text-slate-600">
               <li>Unlimited practice</li>
-              <li>AI tutor explanations</li>
-              <li>FRQ grading</li>
-              <li>Full analytics</li>
-              <li>Mistake review</li>
+              <li>Unlimited AI tutor explanations</li>
+              <li>Unlimited FRQ grading</li>
+              <li>Unlimited screenshot/image coach</li>
+              <li>Full analytics and mistake review</li>
             </ul>
-            <button onClick={checkout} className="mt-6 w-full rounded-full bg-slate-950 px-6 py-3 font-black text-white">{loading ? "Opening Stripe..." : "Start Pro"}</button>
-            {message ? <p className="mt-3 text-sm text-slate-500">{message}</p> : null}
+            <button onClick={() => checkout("pro")} className="mt-6 w-full rounded-full bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-50" disabled={loading !== "" || billing.isPro}>
+              {billing.isPro ? "Already Pro" : loading === "pro" ? "Opening Stripe..." : "Start Pro"}
+            </button>
+            {!billing.signedIn && !billing.loading ? <p className="mt-3 text-sm text-slate-500"><Lock className="mr-1 inline" size={14} /> You’ll be asked to sign in first.</p> : null}
+            {message ? <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-800">{message}</p> : null}
           </Card>
           <Card>
             <h2 className="text-2xl font-black">Cram Pack</h2>
             <p className="mt-2 text-4xl font-black">$14.99</p>
             <ul className="mt-5 space-y-3 text-slate-600">
-              <li>7-day plan</li>
-              <li>High-yield review</li>
-              <li>Practice test</li>
-              <li>5 FRQ grades</li>
+              <li>7-day emergency AP plan</li>
+              <li>High-yield review sequence</li>
+              <li>Practice-test workflow</li>
+              <li>Final weakness report</li>
             </ul>
+            <button onClick={() => checkout("cram")} className="mt-6 w-full rounded-full border border-slate-200 px-6 py-3 font-black text-slate-800 disabled:opacity-50" disabled={loading !== ""}>
+              {loading === "cram" ? "Opening Stripe..." : "Buy cram pack"}
+            </button>
           </Card>
         </div>
       </section>

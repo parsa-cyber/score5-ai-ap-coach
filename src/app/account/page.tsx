@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { LogOut, Mail, ShieldCheck, UserRound } from "lucide-react";
+import { Crown, LogOut, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { Nav } from "@/components/Nav";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSubscription } from "@/hooks/useSubscription";
 
 type AccountUser = {
   id: string;
@@ -17,6 +18,8 @@ export default function AccountPage() {
   const [user, setUser] = useState<AccountUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [billingLoading, setBillingLoading] = useState(false);
+  const billing = useSubscription();
 
   useEffect(() => {
     async function loadUser() {
@@ -31,6 +34,32 @@ export default function AccountPage() {
 
     loadUser();
   }, [supabase]);
+
+
+  async function openBillingPortal() {
+    if (!supabase) return;
+    setBillingLoading(true);
+    setMessage("");
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        setMessage("Sign in first.");
+        return;
+      }
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (payload.url) window.location.href = payload.url;
+      else setMessage(payload.message || "Could not open billing portal.");
+    } catch {
+      setMessage("Could not open billing portal.");
+    } finally {
+      setBillingLoading(false);
+    }
+  }
 
   async function signOut() {
     if (!supabase) return;
@@ -91,6 +120,28 @@ export default function AccountPage() {
                   {user.email || "No email returned"}
                 </div>
               </div>
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-slate-500">Membership</p>
+                    <h3 className="text-2xl font-black text-slate-950">{billing.isPro ? "Score5 Pro" : "Free plan"}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{billing.isPro ? "Unlimited AI tutor, FRQ grading, screenshot coach, and practice." : "Upgrade to unlock unlimited AI tutoring, FRQ grading, screenshot analysis, and practice."}</p>
+                  </div>
+                  <span className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black ${billing.isPro ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"}`}>
+                    <Crown size={17} /> {billing.isPro ? "Pro active" : "Free"}
+                  </span>
+                </div>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {billing.isPro ? (
+                    <button onClick={openBillingPortal} disabled={billingLoading} className="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white disabled:opacity-50">
+                      {billingLoading ? "Opening..." : "Manage billing"}
+                    </button>
+                  ) : (
+                    <Link href="/pricing" className="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white">Upgrade to Pro</Link>
+                  )}
+                </div>
+              </div>
+
               <button
                 onClick={signOut}
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 font-bold text-slate-700 hover:bg-slate-50"

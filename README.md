@@ -113,3 +113,75 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 6. For Google sign-in, enable Google in Supabase Auth Providers and add your Google OAuth client ID/secret.
 
 The app will still run without Supabase, but `/auth` will show a setup warning until those public Supabase keys are present.
+
+## Pro Payments + Usage Limits
+
+This version includes a real Pro monetization flow.
+
+### What was added
+
+- Stripe Checkout for Score5 Pro monthly subscriptions
+- Optional one-time Cram Pack checkout
+- Authenticated checkout, so users must sign in before paying
+- Stripe webhook route at `/api/stripe/webhook`
+- Supabase profile updates after Stripe payment/subscription events
+- Account page membership card
+- Stripe Customer Portal route at `/api/stripe/portal`
+- Free daily limits in the UI:
+  - 10 practice answers/day
+  - 5 AI Tutor messages/day
+  - 1 FRQ grade/day
+  - 2 screenshot analyses/day
+- Pro users unlock unlimited usage in the app UI
+
+### Required Vercel environment variables
+
+Add these in `Vercel → Project → Settings → Environment Variables`:
+
+```bash
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.1-mini
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=...
+STRIPE_SECRET_KEY=...
+STRIPE_PRO_PRICE_ID=price_...
+STRIPE_CRAM_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+### Stripe setup
+
+1. Create a Stripe product named `Score5 Pro`.
+2. Add a recurring monthly price, for example `$7.99/month`.
+3. Copy the `price_...` ID into `STRIPE_PRO_PRICE_ID`.
+4. Optional: create a one-time `Score5 Cram Pack` product and add that `price_...` ID to `STRIPE_CRAM_PRICE_ID`.
+5. Add a webhook endpoint:
+
+```text
+https://your-domain.com/api/stripe/webhook
+```
+
+Listen for:
+
+```text
+checkout.session.completed
+customer.subscription.created
+customer.subscription.updated
+customer.subscription.deleted
+invoice.payment_succeeded
+invoice.payment_failed
+```
+
+6. Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
+7. Redeploy on Vercel.
+
+### Supabase database update
+
+Run the updated `supabase/schema.sql` in Supabase SQL Editor. It adds Pro billing columns to `profiles` and updates the `subscriptions` table.
+
+Important: `SUPABASE_SERVICE_ROLE_KEY` is server-only. Do not expose it in client code.

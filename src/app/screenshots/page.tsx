@@ -12,8 +12,11 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/Card";
 import { apCourses, getCourseInfo } from "@/data/courses";
-import { getProfile, saveProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getRemainingDailyUsage, incrementDailyUsage } from "@/lib/storage";
 import type { Course } from "@/types";
+import { useSubscription } from "@/hooks/useSubscription";
+import { FREE_LIMITS } from "@/lib/subscription";
+import Link from "next/link";
 
 const sampleFeedback = `I can analyze screenshots of AP problems, handwritten FRQ work, graphs, diagrams, or essay drafts. I will identify the course topic, explain the reasoning, point out likely mistakes, and suggest the next practice step.`;
 
@@ -112,6 +115,8 @@ export default function ScreenshotsPage() {
   );
   const [answer, setAnswer] = useState(sampleFeedback);
   const [loading, setLoading] = useState(false);
+  const billing = useSubscription();
+  const remainingScreenshots = billing.isPro ? Infinity : getRemainingDailyUsage("screenshot_analyze", FREE_LIMITS.screenshot_analyze);
   const [error, setError] = useState("");
   const [cameraOn, setCameraOn] = useState(false);
   const [gestureOn, setGestureOn] = useState(false);
@@ -282,6 +287,10 @@ export default function ScreenshotsPage() {
   }
 
   async function analyze() {
+    if (!billing.isPro && remainingScreenshots <= 0) {
+      setError("You hit the free screenshot analysis limit for today. Upgrade to Pro for unlimited image coaching.");
+      return;
+    }
     if (!image) {
       setError("Add a screenshot or camera photo first.");
       return;
@@ -296,6 +305,7 @@ export default function ScreenshotsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not analyze screenshot.");
+      incrementDailyUsage("screenshot_analyze");
       setAnswer(data.answer);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -319,6 +329,9 @@ export default function ScreenshotsPage() {
           <p className="mt-3 max-w-2xl text-slate-600">
             Add a screenshot or camera photo for {courseInfo.shortName}. Gesture capture now uses a no-WebGL camera loop, so it avoids the WebGL crash. Wave/open your palm inside the guide box to start a 3-second countdown.
           </p>
+          <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-700">
+            {billing.isPro ? "Pro active: unlimited screenshot analysis." : `Free plan: ${remainingScreenshots} screenshot analys${remainingScreenshots === 1 ? "is" : "es"} left today.`} {!billing.isPro ? <Link href="/pricing" className="ml-2 text-brand-700 underline">Upgrade</Link> : null}
+          </div>
         </div>
         <button
           onClick={handleCapture}
@@ -454,7 +467,7 @@ export default function ScreenshotsPage() {
           ) : null}
           <button
             onClick={analyze}
-            disabled={loading || !image}
+            disabled={loading || !image || (!billing.isPro && remainingScreenshots <= 0)}
             className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-40"
           >
             {loading ? (

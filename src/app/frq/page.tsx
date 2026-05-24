@@ -5,8 +5,11 @@ import { Nav } from "@/components/Nav";
 import { Card } from "@/components/Card";
 import { frqPrompts } from "@/data/questions";
 import { apCourses, buildCourseFRQPrompt, getCourseInfo, unitsForCourse } from "@/data/courses";
-import { getProfile, saveProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getRemainingDailyUsage, incrementDailyUsage } from "@/lib/storage";
 import type { Course } from "@/types";
+import { useSubscription } from "@/hooks/useSubscription";
+import { FREE_LIMITS } from "@/lib/subscription";
+import Link from "next/link";
 
 export default function FRQPage() {
   const [course, setCourse] = useState<Course>("AP Physics 1: Algebra-Based");
@@ -15,6 +18,8 @@ export default function FRQPage() {
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const billing = useSubscription();
+  const remainingFRQ = billing.isPro ? Infinity : getRemainingDailyUsage("frq_grade", FREE_LIMITS.frq_grade);
 
   useEffect(() => {
     const profile = getProfile();
@@ -40,6 +45,10 @@ export default function FRQPage() {
   }
 
   async function grade() {
+    if (!billing.isPro && remainingFRQ <= 0) {
+      setFeedback("You hit the free FRQ grading limit for today. Upgrade to Pro for unlimited rubric feedback.");
+      return;
+    }
     setLoading(true);
     setFeedback("");
     try {
@@ -49,6 +58,7 @@ export default function FRQPage() {
         body: JSON.stringify({ prompt, answer }),
       });
       const data = await res.json();
+      incrementDailyUsage("frq_grade");
       setFeedback(data.feedback || "No feedback returned.");
     } catch {
       setFeedback("The FRQ endpoint failed. Check your API key or try again.");
@@ -64,6 +74,9 @@ export default function FRQPage() {
         <p className="text-sm font-black uppercase tracking-[0.2em] text-brand-700">FRQ Grader</p>
         <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">Rubric-style grading for every AP class</h1>
         <p className="mt-2 text-slate-600">Paste a response and get estimated points, missing pieces, and a rewrite target. It adapts to {courseInfo.shortName}.</p>
+        <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-700">
+          {billing.isPro ? "Pro active: unlimited FRQ grading." : `Free plan: ${remainingFRQ} FRQ grade${remainingFRQ === 1 ? "" : "s"} left today.`} {!billing.isPro ? <Link href="/pricing" className="ml-2 text-brand-700 underline">Upgrade</Link> : null}
+        </div>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
           <Card>
@@ -93,7 +106,7 @@ export default function FRQPage() {
             <label className="grid gap-2 font-bold">Your response
               <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} rows={10} placeholder="Type your AP response here..." className="rounded-2xl border border-slate-200 px-4 py-3 leading-7 outline-none focus:border-brand-500" />
             </label>
-            <button onClick={grade} disabled={answer.trim().length < 20 || loading} className="mt-5 rounded-full bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-40">
+            <button onClick={grade} disabled={answer.trim().length < 20 || loading || (!billing.isPro && remainingFRQ <= 0)} className="mt-5 rounded-full bg-slate-950 px-6 py-3 font-black text-white disabled:opacity-40">
               {loading ? "Grading..." : "Grade my response"}
             </button>
             {feedback ? (

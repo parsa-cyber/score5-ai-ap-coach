@@ -5,7 +5,7 @@ import { addAttempt } from "@/lib/storage";
 import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 
-export function QuestionCard({ question, onAnswered }: { question: Question; onAnswered?: () => void }) {
+export function QuestionCard({ question, onAnswered, onSubmitted }: { question: Question; onAnswered?: () => void; onSubmitted?: () => void }) {
   const [selected, setSelected] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [aiExplanation, setAiExplanation] = useState("");
@@ -33,6 +33,7 @@ export function QuestionCard({ question, onAnswered }: { question: Question; onA
       timeSpentSeconds: 45,
       course: question.course,
     });
+    onSubmitted?.();
   }
 
   async function explainSimpler() {

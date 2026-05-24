@@ -10,13 +10,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.1",
     "clsx": "latest",
     "lucide-react": "latest",
     "next": "^15.5.18",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "styled-jsx": "^5.1.7"
+    "styled-jsx": "^5.1.7",
+    "@supabase/supabase-js": "^2.87.1"
   },
   "devDependencies": {
     "@types/node": "latest",
